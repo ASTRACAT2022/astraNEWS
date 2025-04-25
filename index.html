@@ -8,30 +8,54 @@
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.9/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body {
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      color: #e0e0e0;
-      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+      color: #fff;
+      font-family: 'Roboto', sans-serif;
       overflow: hidden;
     }
     .glass-effect {
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-    .neon-glow {
-      box-shadow: 0 0 10px #00f6ff, 0 0 20px #00f6ff;
+    .glass-effect:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
     }
     .ticker {
       white-space: nowrap;
       overflow: hidden;
       animation: ticker 20s linear infinite;
     }
+    .ticker:hover {
+      animation-play-state: paused;
+    }
     @keyframes ticker {
       0% { transform: translateX(100%); }
       100% { transform: translateX(-100%); }
+    }
+    .pulse {
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%, 50% { opacity: 1; transform: scale(1); }
+      51%, 100% { opacity: 0.7; transform: scale(0.95); }
+    }
+    .time-transition {
+      transition: opacity 0.3s ease;
+    }
+    .widget {
+      animation: scaleIn 1s ease-out;
+      will-change: transform, opacity;
+    }
+    @keyframes scaleIn {
+      0% { opacity: 0; transform: scale(0.95); }
+      100% { opacity: 1; transform: scale(1); }
     }
   </style>
 </head>
@@ -40,114 +64,69 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // Function to fetch and parse weather data with retry
-    async function fetchMoscowWeather(maxRetries = 3) {
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          const corsProxy = 'https://corsproxy.io/?';
-          const url = `${corsProxy}${encodeURIComponent('https://www.gismeteo.ru/weather-moscow-4368/')}`;
-          const response = await fetch(url, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-          });
-          if (!response.ok) throw new Error('Network response was not ok');
-
-          const text = await response.text();
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(text, 'text/html');
-
-          // Extract temperature and condition (update selectors based on GISMETEO's actual structure)
-          const tempElement = doc.querySelector('.temperature .value');
-          const conditionElement = doc.querySelector('.condition');
-
-          const temperature = tempElement ? tempElement.textContent.trim() : 'N/A';
-          const condition = conditionElement ? conditionElement.textContent.trim() : 'N/A';
-
-          return { temp: temperature, condition: condition };
-        } catch (error) {
-          console.error(`Attempt ${attempt} failed:`, error);
-          if (attempt === maxRetries) {
-            return { temp: 'Ошибка', condition: 'Не удалось загрузить' };
-          }
-          // Wait 1 second before retrying
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-    }
-
     // Main Dashboard Component
     function Dashboard() {
       const [time, setTime] = useState(new Date());
-      const [weather, setWeather] = useState({ temp: 'Загрузка...', condition: 'Загрузка...' });
+      const [prevTime, setPrevTime] = useState(new Date());
       const [notifications, setNotifications] = useState('Добро пожаловать на цифровую панель!');
 
       useEffect(() => {
-        // Update time every second
-        const timer = setInterval(() => setTime(new Date()), 1000);
+        const timer = setInterval(() => {
+          const newTime = new Date();
+          setPrevTime(time);
+          setTime(newTime);
+        }, 1000);
 
-        // Fetch weather data on mount
-        fetchMoscowWeather().then(data => setWeather(data));
-
-        // Refresh weather every 30 minutes
-        const weatherInterval = setInterval(() => {
-          fetchMoscowWeather().then(data => setWeather(data));
-        }, 30 * 60 * 1000);
-
-        // Simulate notifications update
         setTimeout(() => setNotifications('Новое событие: совещание в 14:00'), 10000);
 
-        return () => {
-          clearInterval(timer);
-          clearInterval(weatherInterval);
-        };
-      }, []);
+        return () => clearInterval(timer);
+      }, [time]);
+
+      const isMinuteChanged = time.getMinutes() !== prevTime.getMinutes();
 
       return (
-        <div className="min-h-screen p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Time/Date Widget */}
-          <div className="glass-effect p-6 rounded-lg neon-glow">
-            <h1 className="text-5xl font-bold text-cyan-300">
-              {time.toLocaleTimeString()}
+        <div className="min-h-screen p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Clock Widget */}
+          <div className="glass-effect p-8 rounded-xl widget">
+            <h1 className="text-7xl font-bold flex items-center">
+              <span className={isMinuteChanged ? 'time-transition' : ''}>
+                {time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <span className="text-5xl pulse">:{time.getSeconds().toString().padStart(2, '0')}</span>
             </h1>
-            <p className="text-xl text-gray-300 mt-2">
+            <p className="text-2xl text-gray-400 mt-3">
               {time.toLocaleDateString('ru-RU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
 
-          {/* Weather Widget */}
-          <div className="glass-effect p-6 rounded-lg">
-            <h2 className="text-2xl font-semibold text-cyan-300">Погода в Москве</h2>
-            <p className="text-3xl mt-2">{weather.temp}</p>
-            <p className="text-xl text-gray-300">{weather.condition}</p>
-          </div>
-
           {/* Better Uptime Status */}
-          <div className="glass-effect p-6 rounded-lg">
-            <h2 className="text-2xl font-semibold text-cyan-300">Статус экосистемы</h2>
+          <div className="glass-effect p-8 rounded-xl widget max-w-full overflow-auto">
+            <h2 className="text-3xl font-semibold mb-4">Статус экосистемы</h2>
             <iframe
-              src="https://astracat-inc.betteruptime.com/badge?theme=dark"
-              width="250"
-              height="30"
+              src="https://astracat-inc.betteruptime.com"
+              width="1000"
+              height="800"
               frameBorder="0"
-              scrolling="no"
-              style={{ colorScheme: 'normal' }}
+              style={{ filter: 'grayscale(100%)', maxWidth: '100%' }}
               title="Better Uptime Status"
             ></iframe>
           </div>
 
           {/* Camera Stream */}
-          <div className="glass-effect p-6 rounded-lg">
-            <h2 className="text-2xl font-semibold text-cyan-300">Камера</h2>
+          <div className="glass-effect p-8 rounded-xl widget">
+            <h2 className="text-3xl font-semibold mb-4">Камера</h2>
             <iframe
-              src="https://webcams.org.ru/js/player/playerjs.html?file=...&autoplay=1"
-              className="w-full h-48 mt-2"
+              src="https://webcams.org.ru/js/player/playerjs.html?file=https://hls-spb03.timetechnology.ru:8080/2722/hls/fcdac098bed8c78a/live.m3u8&poster=/images/photo/fe/de/federation-tower-cam.webp&autoplay=1"
+              className="w-full h-64"
+              style={{ filter: 'grayscale(100%)' }}
               title="Camera Stream"
               allow="autoplay"
             ></iframe>
           </div>
 
           {/* Notifications Ticker */}
-          <div className="glass-effect p-4 rounded-lg col-span-1 md:col-span-2 lg:col-span-4">
-            <p className stampa="text-lg ticker text-cyan-300">{notifications}</p>
+          <div className="glass-effect p-6 rounded-xl col-span-1 md:col-span-3 widget">
+            <p className="text-xl ticker">{notifications}</p>
           </div>
         </div>
       );
@@ -171,15 +150,15 @@
       };
 
       return (
-        <div className="min-h-screen p-4">
-          <h1 className="text-3xl font-bold text-cyan-300 mb-4">Админ-панель</h1>
+        <div className="min-h-screen p-6">
+          <h1 className="text-4xl font-bold mb-6">Админ-панель</h1>
 
           {/* Screen Monitoring */}
-          <div className="glass-effect p-6 rounded-lg mb-4">
-            <h2 className="text-2xl font-semibold text-cyan-300">Мониторинг экранов</h2>
+          <div className="glass-effect p-8 rounded-xl mb-6">
+            <h2 className="text-3xl font-semibold mb-4">Мониторинг экранов</h2>
             <ul className="mt-2">
               {screens.map(screen => (
-                <li key={screen.id} className="text-lg">
+                <li key={screen.id} className="text-xl">
                   {screen.name}: <span className={screen.status === 'Онлайн' ? 'text-green-400' : 'text-red-400'}>{screen.status}</span>
                 </li>
               ))}
@@ -187,16 +166,16 @@
           </div>
 
           {/* Content Management */}
-          <div className="glass-effect p-6 rounded-lg mb-4">
-            <h2 className="text-2xl font-semibold text-cyan-300">Управление контентом</h2>
+          <div className="glass-effect p-8 rounded-xl mb-6">
+            <h2 className="text-3xl font-semibold mb-4">Управление контентом</h2>
             <textarea
-              className="w-full p-2 mt-2 bg-transparent border border-gray-500 rounded text-white"
+              className="w-full p-3 mt-2 bg-transparent border border-gray-500 rounded text-white text-lg"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Введите новый контент"
             ></textarea>
             <button
-              className="mt-2 px-4 py-2 bg-cyan-500 text-white rounded hover:bg-cyan-600"
+              className="mt-3 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 hover:scale-105 transition-transform"
               onClick={handleContentUpdate}
             >
               Обновить контент
@@ -204,17 +183,17 @@
           </div>
 
           {/* Event Calendar */}
-          <div className="glass-effect p-6 rounded-lg">
-            <h2 className="text-2xl font-semibold text-cyan-300">Календарь событий</h2>
+          <div className="glass-effect p-8 rounded-xl">
+            <h2 className="text-3xl font-semibold mb-4">Календарь событий</h2>
             <button
-              className="mt-2 px-4 py-2 bg-cyan-500 text-white rounded hover:bg-cyan-600"
+              className="mt-3 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 hover:scale-105 transition-transform"
               onClick={addEvent}
             >
               Добавить событие
             </button>
-            <ul className="mt-2">
+            <ul className="mt-4">
               {events.map(event => (
-                <li key={event.id} className="text-lg">
+                <li key={event.id} className="text-xl">
                   {event.title} - {event.date}
                 </li>
               ))}
