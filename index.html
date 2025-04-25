@@ -3,124 +3,226 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ASTRACAT Информационный экран</title>
+  <title>Digital Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.9/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://uptime.betterstack.com/widgets/announcement.js" data-id="211804" async="async" type="text/javascript"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap');
     body {
-      background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
-      color: #d1d5db;
-      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #	E0E0E0;
+      font-family: 'Arial', sans-serif;
       overflow: hidden;
     }
-    .glass {
-      background: rgba(31, 41, 55, 0.4);
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.05);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 16px;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
     }
-    .astracat-logo {
-      font-size: 4rem;
-      font-weight: 700;
-      color: #60a5fa;
-      letter-spacing: 1px;
-      transition: color 0.3s ease;
+    .neon-glow {
+      box-shadow: 0 0 10px #00f6ff, 0 0 20px #00f6ff;
     }
-    .section-title {
-      font-weight: 600;
-      color: #f3f4f6;
-      border-left: 4px solid #60a5fa;
-      padding-left: 1rem;
-    }
-    .card {
-      background: rgba(31, 41, 55, 0.6);
-      border-radius: 8px;
-      padding: 1rem;
-      transition: transform 0.3s ease;
-    }
-    .card:hover {
-      transform: translateY(-4px);
-    }
-    .webcam-container {
-      width: 240px;
-      height: 135px;
-      border-radius: 8px;
+    .ticker {
+      white-space: nowrap;
       overflow: hidden;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      animation: ticker 20s linear infinite;
     }
-    @media (min-width: 1920px) {
-      html { font-size: 1.6vw; }
-      .glass { padding: 2.5rem; }
-      .astracat-logo { font-size: 5rem; }
-      .webcam-container { width: 360px; height: 202px; }
+    @keyframes ticker {
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
     }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-6">
-  <div class="glass w-full max-w-8xl p-8 flex flex-col gap-10">
-    <div class="flex justify-between items-center">
-      <div id="time-date" class="text-4xl font-semibold text-gray-200"></div>
-      <div id="weather" class="text-2xl font-medium card"></div>
-    </div>
-    <div class="flex flex-col gap-6">
-      <h1 class="astracat-logo text-center">ASTRACAT</h1>
-      <iframe src="https://astracat-inc.betteruptime.com/badge?theme=dark" width="300" height="40" frameborder="0" scrolling="no" style="color-scheme: normal;"></iframe>
-      <div id="ecosystem-info" class="text-lg card"></div>
-    </div>
-    <div class="flex flex-col gap-6">
-      <h2 class="text-2xl section-title">Календарь событий</h2>
-      <div id="calendar" class="text-lg grid grid-cols-1 gap-3"></div>
-    </div>
-    <div class="flex flex-col gap-6">
-      <h2 class="text-2xl section-title">Уведомления</h2>
-      <div id="notifications" class="text-lg grid grid-cols-1 gap-3"></div>
-    </div>
-    <div class="flex justify-end">
-      <div class="webcam-container">
-        <iframe src="https://webcams.org.ru/js/player/playerjs.html?file=https://hls-spb03.timetechnology.ru:8080/2722/hls/fcdac098bed8c78a/live.m3u8&poster=/images/photo/fe/de/federation-tower-cam.webp" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
-      </div>
-    </div>
-  </div>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
 
-  <script>
-    // WebSocket для отслеживания активных экранов
-    const ws = new WebSocket('wss://example.com/ws');
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ type: 'screen_connect', id: navigator.userAgent }));
-    };
-    ws.onclose = () => {
-      setTimeout(() => location.reload(), 5000);
-    };
-
-    // Обновление времени и даты
-    function updateTimeDate() {
-      const now = new Date();
-      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
-      document.getElementById('time-date').textContent = now.toLocaleString('ru-RU', options);
-    }
-    setInterval(updateTimeDate, 1000);
-    updateTimeDate();
-
-    // Загрузка данных из localStorage
-    function loadData() {
-      const data = JSON.parse(localStorage.getItem('screenData') || '{}');
-      document.getElementById('weather').textContent = data.weather || 'Погода: Нет данных';
-      document.getElementById('ecosystem-info').textContent = data.ecosystem || 'Информация об экосистеме: Нет данных';
-      document.getElementById('calendar').innerHTML = (data.calendar || []).map(event => `<p class="card">${event.date}: ${event.title}</p>`).join('');
-      document.getElementById('notifications').innerHTML = (data.notifications || []).map(note => `<p class="text-red-200 card">${note}</p>`).join('');
-    }
-    loadData();
-
-    // Обновление данных через WebSocket
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'update') {
-        localStorage.setItem('screenData', JSON.stringify(data.payload));
-        loadData();
+    // Function to fetch and parse weather data
+    async function fetchMoscowWeather() {
+      try {
+        // Using a CORS proxy to bypass same-origin policy
+        const corsProxy = 'https://cors-anywhere.herokuapp.com/';
+        const url = `${corsProxy}https://www.gismeteo.ru/weather-moscow-4368/`;
+        const response = await fetch(url, {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const text = await response.text();
+        
+        // Create a DOM parser to parse the HTML
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        
+        // Extract temperature and condition (adjust selectors based on GISMETEO's structure)
+        const tempElement = doc.querySelector('.weather-temperature .unit_temperature_c');
+        const conditionElement = doc.querySelector('.weather-condition');
+        
+        const temperature = tempElement ? tempElement.textContent.trim() : 'N/A';
+        const condition = conditionElement ? conditionElement.textContent.trim() : 'N/A';
+        
+        return { temp: temperature, condition: condition };
+      } catch (error) {
+        console.error('Error fetching weather:', error);
+        return { temp: 'N/A', condition: 'Ошибка' };
       }
-    };
+    }
+
+    // Main Dashboard Component
+    function Dashboard() {
+      const [time, setTime] = useState(new Date());
+      const [weather, setWeather] = useState({ temp: 'Загрузка...', condition: 'Загрузка...' });
+      const [notifications, setNotifications] = useState('Добро пожаловать на цифровую панель!');
+
+      useEffect(() => {
+        // Update time every second
+        const timer = setInterval(() => setTime(new Date()), 1000);
+
+        // Fetch weather data on mount
+        fetchMoscowWeather().then(data => setWeather(data));
+
+        // Refresh weather every 30 minutes
+        const weatherInterval = setInterval(() => {
+          fetchMoscowWeather().then(data => setWeather(data));
+        }, 30 * 60 * 1000);
+
+        // Simulate notifications update
+        setTimeout(() => setNotifications('Новое событие: совещание в 14:00'), 10000);
+
+        return () => {
+          clearInterval(timer);
+          clearInterval(weatherInterval);
+        };
+      }, []);
+
+      return (
+        <div className="min-h-screen p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Time/Date Widget */}
+          <div className="glass-effect p-6 rounded-lg neon-glow">
+            <h1 className="text-5xl font-bold text-cyan-300">
+              {time.toLocaleTimeString()}
+            </h1>
+            <p className="text-xl text-gray-300 mt-2">
+              {time.toLocaleDateString('ru-RU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+
+          {/* Weather Widget */}
+          <div className="glass-effect p-6 rounded-lg">
+            <h2 className="text-2xl font-semibold text-cyan-300">Погода в Москве</h2>
+            <p className="text-3xl mt-2">{weather.temp}</p>
+            <p className="text-xl text-gray-300">{weather.condition}</p>
+          </div>
+
+          {/* Better Uptime Status (iframe) */}
+          <div className="glass-effect p-6 rounded-lg">
+            <h2 className="text-2xl font-semibold text-cyan-300">Статус экосистемы</h2>
+            <iframe
+              src="https://betteruptime.com/status-page"
+              className="w-full h-48 mt-2"
+              title="Better Uptime Status"
+            ></iframe>
+          </div>
+
+          {/* Camera Stream */}
+          <div className="glass-effect p-6 rounded-lg">
+            <h2 className="text-2xl font-semibold text-cyan-300">Камера</h2>
+            <iframe
+              src="https://webcams.org.ru/js/player/playerjs.html?file=..."
+              className="w-full h-48 mt-2"
+              title="Camera Stream"
+            ></iframe>
+          </div>
+
+          {/* Notifications Ticker */}
+          <div className="glass-effect p-4 rounded-lg col-span-1 md:col-span-2 lg:col-span-4">
+            <p className="text-lg ticker text-cyan-300">{notifications}</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Admin Panel Component
+    function AdminPanel() {
+      const [screens, setScreens] = useState([
+        { id: 1, name: 'Экран 1', status: 'Онлайн' },
+        { id: 2, name: 'Экран 2', status: 'Офлайн' },
+      ]);
+      const [content, setContent] = useState('');
+      const [events, setEvents] = useState([]);
+
+      const handleContentUpdate = () => {
+        alert('Контент обновлен: ' + content);
+      };
+
+      const addEvent = () => {
+        setEvents([...events, { id: Date.now(), title: 'Новое событие', date: new Date().toLocaleDateString() }]);
+      };
+
+      return (
+        <div className="min-h-screen p-4">
+          <h1 className="text-3xl font-bold text-cyan-300 mb-4">Админ-панель</h1>
+
+          {/* Screen Monitoring */}
+          <div className="glass-effect p-6 rounded-lg mb-4">
+            <h2 className="text-2xl font-semibold text-cyan-300">Мониторинг экранов</h2>
+            <ul className="mt-2">
+              {screens.map(screen => (
+                <li key={screen.id} className="text-lg">
+                  {screen.name}: <span className={screen.status === 'Онлайн' ? 'text-green-400' : 'text-red-400'}>{screen.status}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Content Management */}
+          <div className="glass-effect p-6 rounded-lg mb-4">
+            <h2 className="text-2xl font-semibold text-cyan-300">Управление контентом</h2>
+            <textarea
+              className="w-full p-2 mt-2 bg-transparent border border-gray-500 rounded text-white"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Введите новый контент"
+            ></textarea>
+            <button
+              className="mt-2 px-4 py-2 bg-cyan-500 text-white rounded hover:bg-cyan-600"
+              onClick={handleContentUpdate}
+            >
+              Обновить контент
+            </button>
+          </div>
+
+          {/* Event Calendar */}
+          <div className="glass-effect p-6 rounded-lg">
+            <h2 className="text-2xl font-semibold text-cyan-300">Календарь событий</h2>
+            <button
+              className="mt-2 px-4 py-2 bg-cyan-500 text-white rounded hover:bg-cyan-600"
+              onClick={addEvent}
+            >
+              Добавить событие
+            </button>
+            <ul className="mt-2">
+              {events.map(event => (
+                <li key={event.id} className="text-lg">
+                  {event.title} - {event.date}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      );
+    }
+
+    // App Component with Routing
+    function App() {
+      const [isAdmin, setIsAdmin] = useState(window.location.pathname === '/admin');
+
+      return isAdmin ? <AdminPanel /> : <Dashboard />;
+    }
+
+    // Render the App
+    ReactDOM.render(<App />, document.getElementById('root'));
   </script>
 </body>
 </html>
