@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Панель управления</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: linear-gradient(to bottom, #1a202c, #2d3748);
+      color: white;
+      font-family: 'Arial', sans-serif;
+    }
+    .glass {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 16px;
+    }
+  </style>
+</head>
+<body class="min-h-screen p-4">
+  <div class="glass max-w-4xl mx-auto p-8 flex flex-col gap-8">
+    <h1 class="text-3xl font-bold">Панель управления</h1>
+    <div>
+      <h2 class="text-2xl">Активные экраны: <span id="active-screens">0</span></h2>
+    </div>
+    <div class="flex flex-col gap-4">
+      <h2 class="text-2xl">Обновить погоду</h2>
+      <input id="weather-input" type="text" placeholder="Введите данные о погоде" class="p-2 bg-gray-800 rounded text-white">
+      <button onclick="updateWeather()" class="p-2 bg-blue-600 rounded hover:bg-blue-700">Обновить</button>
+    </div>
+    <div class="flex flex-col gap-4">
+      <h2 class="text-2xl">Обновить информацию об экосистеме</h2>
+      <textarea id="ecosystem-input" placeholder="Введите информацию" class="p-2 bg-gray-800 rounded text-white"></textarea>
+      <button onclick="updateEcosystem()" class="p-2 bg-blue-600 rounded hover:bg-blue-700">Обновить</button>
+    </div>
+    <div class="flex flex-col gap-4">
+      <h2 class="text-2xl">Добавить событие в календарь</h2>
+      <input id="event-date" type="date" class="p-2 bg-gray-800 rounded text-white">
+      <input id="event-title" type="text" placeholder="Название события" class="p-2 bg-gray-800 rounded text-white">
+      <button onclick="addEvent()" class="p-2 bg-blue-600 rounded hover:bg-blue-700">Добавить</button>
+    </div>
+    <div class="flex flex-col gap-4">
+      <h2 class="text-2xl">Добавить уведомление</h2>
+      <input id="notification-input" type="text" placeholder="Текст уведомления" class="p-2 bg-gray-800 rounded text-white">
+      <select id="screen-select" class="p-2 bg-gray-800 rounded text-white">
+        <option value="all">Все экраны</option>
+      </select>
+      <button onclick="addNotification()" class="p-2 bg-blue-600 rounded hover:bg-blue-700">Отправить</button>
+    </div>
+  </div>
+
+  <script>
+    const ws = new WebSocket('wss://example.com/ws');
+    let screens = [];
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'admin_connect' }));
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'screen_list') {
+        screens = data.screens;
+        document.getElementById('active-screens').textContent = screens.length;
+        const select = document.getElementById('screen-select');
+        select.innerHTML = '<option value="all">Все экраны</option>' + 
+          screens.map(s => `<option value="${s}">${s}</option>`).join('');
+      }
+    };
+
+    function updateWeather() {
+      const weather = document.getElementById('weather-input').value;
+      sendUpdate({ weather });
+    }
+
+    function updateEcosystem() {
+      const ecosystem = document.getElementById('ecosystem-input').value;
+      sendUpdate({ ecosystem });
+    }
+
+    function addEvent() {
+      const date = document.getElementById('event-date').value;
+      const title = document.getElementById('event-title').value;
+      const calendar = JSON.parse(localStorage.getItem('screenData') || '{}').calendar || [];
+      calendar.push({ date, title });
+      sendUpdate({ calendar });
+    }
+
+    function addNotification() {
+      const text = document.getElementById('notification-input').value;
+      const screen = document.getElementById('screen-select').value;
+      const notifications = JSON.parse(localStorage.getItem('screenData') || '{}').notifications || [];
+      notifications.push(text);
+      sendUpdate({ notifications }, screen);
+    }
+
+    function sendUpdate(payload, screen = 'all') {
+      const data = JSON.parse(localStorage.getItem('screenData') || '{}');
+      Object.assign(data, payload);
+      localStorage.setItem('screenData', JSON.stringify(data));
+      ws.send(JSON.stringify({ type: 'update', payload: data, screen }));
+    }
+  </script>
+</body>
+</html>
