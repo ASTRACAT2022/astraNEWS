@@ -11,7 +11,7 @@
   <style>
     body {
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      color: #	E0E0E0;
+      color: #e0e0e0;
       font-family: 'Arial', sans-serif;
       overflow: hidden;
     }
@@ -40,32 +40,37 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // Function to fetch and parse weather data
-    async function fetchMoscowWeather() {
-      try {
-        // Using a CORS proxy to bypass same-origin policy
-        const corsProxy = 'https://cors-anywhere.herokuapp.com/';
-        const url = `${corsProxy}https://www.gismeteo.ru/weather-moscow-4368/`;
-        const response = await fetch(url, {
-          headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        });
-        const text = await response.text();
-        
-        // Create a DOM parser to parse the HTML
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(text, 'text/html');
-        
-        // Extract temperature and condition (adjust selectors based on GISMETEO's structure)
-        const tempElement = doc.querySelector('.weather-temperature .unit_temperature_c');
-        const conditionElement = doc.querySelector('.weather-condition');
-        
-        const temperature = tempElement ? tempElement.textContent.trim() : 'N/A';
-        const condition = conditionElement ? conditionElement.textContent.trim() : 'N/A';
-        
-        return { temp: temperature, condition: condition };
-      } catch (error) {
-        console.error('Error fetching weather:', error);
-        return { temp: 'N/A', condition: 'Ошибка' };
+    // Function to fetch and parse weather data with retry
+    async function fetchMoscowWeather(maxRetries = 3) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const corsProxy = 'https://corsproxy.io/?';
+          const url = `${corsProxy}${encodeURIComponent('https://www.gismeteo.ru/weather-moscow-4368/')}`;
+          const response = await fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          });
+          if (!response.ok) throw new Error('Network response was not ok');
+
+          const text = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(text, 'text/html');
+
+          // Extract temperature and condition (update selectors based on GISMETEO's actual structure)
+          const tempElement = doc.querySelector('.temperature .value');
+          const conditionElement = doc.querySelector('.condition');
+
+          const temperature = tempElement ? tempElement.textContent.trim() : 'N/A';
+          const condition = conditionElement ? conditionElement.textContent.trim() : 'N/A';
+
+          return { temp: temperature, condition: condition };
+        } catch (error) {
+          console.error(`Attempt ${attempt} failed:`, error);
+          if (attempt === maxRetries) {
+            return { temp: 'Ошибка', condition: 'Не удалось загрузить' };
+          }
+          // Wait 1 second before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
     }
 
@@ -115,12 +120,16 @@
             <p className="text-xl text-gray-300">{weather.condition}</p>
           </div>
 
-          {/* Better Uptime Status (iframe) */}
+          {/* Better Uptime Status */}
           <div className="glass-effect p-6 rounded-lg">
             <h2 className="text-2xl font-semibold text-cyan-300">Статус экосистемы</h2>
             <iframe
-              src="https://betteruptime.com/status-page"
-              className="w-full h-48 mt-2"
+              src="https://astracat-inc.betteruptime.com/badge?theme=dark"
+              width="250"
+              height="30"
+              frameBorder="0"
+              scrolling="no"
+              style={{ colorScheme: 'normal' }}
               title="Better Uptime Status"
             ></iframe>
           </div>
@@ -129,15 +138,16 @@
           <div className="glass-effect p-6 rounded-lg">
             <h2 className="text-2xl font-semibold text-cyan-300">Камера</h2>
             <iframe
-              src="https://webcams.org.ru/js/player/playerjs.html?file=..."
+              src="https://webcams.org.ru/js/player/playerjs.html?file=...&autoplay=1"
               className="w-full h-48 mt-2"
               title="Camera Stream"
+              allow="autoplay"
             ></iframe>
           </div>
 
           {/* Notifications Ticker */}
           <div className="glass-effect p-4 rounded-lg col-span-1 md:col-span-2 lg:col-span-4">
-            <p className="text-lg ticker text-cyan-300">{notifications}</p>
+            <p className stampa="text-lg ticker text-cyan-300">{notifications}</p>
           </div>
         </div>
       );
