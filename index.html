@@ -8,24 +8,24 @@
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.9/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body {
-      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+      background: linear-gradient(135deg, #000 0%, #333 100%);
       color: #fff;
       font-family: 'Roboto', sans-serif;
       overflow: hidden;
     }
     .glass-effect {
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(15px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      box-shadow: 0 8px 50px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(255, 255, 255, 0.1);
       transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
     .glass-effect:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+      transform: scale(1.03);
+      box-shadow: 0 0 30px rgba(255, 255, 255, 0.4);
     }
     .ticker {
       white-space: nowrap;
@@ -43,19 +43,40 @@
       animation: pulse 1s infinite;
     }
     @keyframes pulse {
-      0%, 50% { opacity: 1; transform: scale(1); }
-      51%, 100% { opacity: 0.7; transform: scale(0.95); }
-    }
-    .time-transition {
-      transition: opacity 0.3s ease;
+      0% { transform: rotateY(0deg) scale(1); }
+      50% { transform: rotateY(180deg) scale(1.1); }
+      100% { transform: rotateY(360deg) scale(1); }
     }
     .widget {
-      animation: scaleIn 1s ease-out;
+      animation: cascadeIn 1s ease-out forwards;
       will-change: transform, opacity;
     }
-    @keyframes scaleIn {
-      0% { opacity: 0; transform: scale(0.95); }
-      100% { opacity: 1; transform: scale(1); }
+    @keyframes cascadeIn {
+      0% { opacity: 0; transform: translateY(20px) scale(0.9); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .widget:nth-child(1) { animation-delay: 0.1s; }
+    .widget:nth-child(2) { animation-delay: 0.2s; }
+    .widget:nth-child(3) { animation-delay: 0.3s; }
+    .widget:nth-child(4) { animation-delay: 0.4s; }
+    .widget:nth-child(5) { animation-delay: 0.5s; }
+    .shimmer {
+      position: relative;
+      overflow: hidden;
+    }
+    .shimmer::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      animation: shimmer 3s infinite;
+    }
+    @keyframes shimmer {
+      0% { left: -100%; }
+      100% { left: 100%; }
     }
   </style>
 </head>
@@ -64,44 +85,132 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
+    // Fetch news headlines
+    async function fetchNews(maxRetries = 3) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const corsProxy = 'https://corsproxy.io/?';
+          const url = `${corsProxy}${encodeURIComponent('https://www.rbc.ru/short_news')}`;
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('Network error');
+          const text = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(text, 'text/html');
+          const newsItems = doc.querySelectorAll('.news-title'); // Update selector
+          const headlines = Array.from(newsItems).slice(0, 3).map(item => item.textContent.trim());
+          return headlines.length ? headlines : ['Нет новостей'];
+        } catch (error) {
+          console.error(`News fetch attempt ${attempt} failed:`, error);
+          if (attempt === maxRetries) return ['Ошибка загрузки новостей'];
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+
+    // Fetch traffic updates
+    async function fetchTraffic(maxRetries = 3) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const corsProxy = 'https://corsproxy.io/?';
+          const url = `${corsProxy}${encodeURIComponent('https://yandex.ru/maps/213/moscow/traffic/')}`;
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('Network error');
+          const text = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(text, 'text/html');
+          const trafficLevel = doc.querySelector('.traffic-level'); // Update selector
+          return trafficLevel ? trafficLevel.textContent.trim() : 'Нет данных';
+        } catch (error) {
+          console.error(`Traffic fetch attempt ${attempt} failed:`, error);
+          if (attempt === maxRetries) return 'Ошибка загрузки трафика';
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+
+    // Fetch public events
+    async function fetchEvents(maxRetries = 3) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const corsProxy = 'https://corsproxy.io/?';
+          const url = `${corsProxy}${encodeURIComponent('https://kudago.com/msk/')}`;
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('Network error');
+          const text = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(text, 'text/html');
+          const eventItems = doc.querySelectorAll('.event-title'); // Update selector
+          const events = Array.from(eventItems).slice(0, 3).map(item => ({
+            title: item.textContent.trim(),
+            date: item.nextElementSibling?.textContent.trim() || 'N/A'
+          }));
+          return events.length ? events : [{ title: 'Нет событий', date: 'N/A' }];
+        } catch (error) {
+          console.error(`Events fetch attempt ${attempt} failed:`, error);
+          if (attempt === maxRetries) return [{ title: 'Ошибка загрузки событий', date: 'N/A' }];
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+
     // Main Dashboard Component
     function Dashboard() {
       const [time, setTime] = useState(new Date());
       const [prevTime, setPrevTime] = useState(new Date());
       const [notifications, setNotifications] = useState('Добро пожаловать на цифровую панель!');
+      const [news, setNews] = useState(['Загрузка новостей...']);
+      const [traffic, setTraffic] = useState('Загрузка трафика...');
+      const [events, setEvents] = useState([{ title: 'Загрузка событий...', date: 'N/A' }]);
 
       useEffect(() => {
+        // Update time
         const timer = setInterval(() => {
           const newTime = new Date();
           setPrevTime(time);
           setTime(newTime);
         }, 1000);
 
+        // Fetch data on mount
+        fetchNews().then(data => setNews(data));
+        fetchTraffic().then(data => setTraffic(data));
+        fetchEvents().then(data => setEvents(data));
+
+        // Refresh data every 30 minutes
+        const dataInterval = setInterval(() => {
+          fetchNews().then(data => setNews(data));
+          fetchTraffic().then(data => setTraffic(data));
+          fetchEvents().then(data => setEvents(data));
+        }, 30 * 60 * 1000);
+
+        // Update notifications
         setTimeout(() => setNotifications('Новое событие: совещание в 14:00'), 10000);
 
-        return () => clearInterval(timer);
+        return () => {
+          clearInterval(timer);
+          clearInterval(dataInterval);
+        };
       }, [time]);
 
       const isMinuteChanged = time.getMinutes() !== prevTime.getMinutes();
 
       return (
-        <div className="min-h-screen p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="min-h-screen p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Clock Widget */}
-          <div className="glass-effect p-8 rounded-xl widget">
-            <h1 className="text-7xl font-bold flex items-center">
+          <div className="glass-effect p-10 rounded-2xl widget shimmer" style={{ fontFamily: 'Orbitron', fontWeight: 700 }}>
+            <h1 className="text-8xl flex items-center">
               <span className={isMinuteChanged ? 'time-transition' : ''}>
                 {time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
               </span>
-              <span className="text-5xl pulse">:{time.getSeconds().toString().padStart(2, '0')}</span>
+              <span className="text-6xl pulse">:{time.getSeconds().toString().padStart(2, '0')}</span>
             </h1>
-            <p className="text-2xl text-gray-400 mt-3">
+            <p className="text-2xl text-gray-400 mt-4">
               {time.toLocaleDateString('ru-RU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
 
           {/* Better Uptime Status */}
-          <div className="glass-effect p-8 rounded-xl widget max-w-full overflow-auto">
-            <h2 className="text-3xl font-semibold mb-4">Статус экосистемы</h2>
+          <div className="glass-effect p-10 rounded-2xl widget max-w-full overflow-auto shimmer">
+            <h2 className="text-4xl font-semibold mb-6" style={{ fontFamily: 'Orbitron' }}>Статус экосистемы</h2>
             <iframe
               src="https://astracat-inc.betteruptime.com"
               width="1000"
@@ -113,20 +222,46 @@
           </div>
 
           {/* Camera Stream */}
-          <div className="glass-effect p-8 rounded-xl widget">
-            <h2 className="text-3xl font-semibold mb-4">Камера</h2>
+          <div className="glass-effect p-10 rounded-2xl widget shimmer">
+            <h2 className="text-4xl font-semibold mb-6" style={{ fontFamily: 'Orbitron' }}>Камера</h2>
             <iframe
               src="https://webcams.org.ru/js/player/playerjs.html?file=https://hls-spb03.timetechnology.ru:8080/2722/hls/fcdac098bed8c78a/live.m3u8&poster=/images/photo/fe/de/federation-tower-cam.webp&autoplay=1"
-              className="w-full h-64"
+              className="w-full h-80"
               style={{ filter: 'grayscale(100%)' }}
               title="Camera Stream"
               allow="autoplay"
             ></iframe>
           </div>
 
+          {/* News Headlines */}
+          <div className="glass-effect p-10 rounded-2xl widget shimmer">
+            <h2 className="text-4xl font-semibold mb-6" style={{ fontFamily: 'Orbitron' }}>Новости</h2>
+            <ul className="text-lg text-gray-300">
+              {news.map((item, index) => (
+                <li key={index} className="mb-2">{item}</li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Traffic Updates */}
+          <div className="glass-effect p-10 rounded-2xl widget shimmer">
+            <h2 className="text-4xl font-semibold mb-6" style={{ fontFamily: 'Orbitron' }}>Трафик в Москве</h2>
+            <p className="text-2xl text-gray-300">{traffic}</p>
+          </div>
+
+          {/* Public Events */}
+          <div className="glass-effect p-10 rounded-2xl widget shimmer">
+            <h2 className="text-4xl font-semibold mb-6" style={{ fontFamily: 'Orbitron' }}>События в Москве</h2>
+            <ul className="text-lg text-gray-300">
+              {events.map((event, index) => (
+                <li key={index} className="mb-2">{event.title} - {event.date}</li>
+              ))}
+            </ul>
+          </div>
+
           {/* Notifications Ticker */}
-          <div className="glass-effect p-6 rounded-xl col-span-1 md:col-span-3 widget">
-            <p className="text-xl ticker">{notifications}</p>
+          <div className="glass-effect p-8 rounded-2xl col-span-1 md:col-span-2 lg:col-span-4 widget shimmer">
+            <p className="text-2xl ticker">{notifications}</p>
           </div>
         </div>
       );
@@ -150,15 +285,15 @@
       };
 
       return (
-        <div className="min-h-screen p-6">
-          <h1 className="text-4xl font-bold mb-6">Админ-панель</h1>
+        <div className="min-h-screen p-8">
+          <h1 className="text-5xl font-bold mb-8" style={{ fontFamily: 'Orbitron' }}>Админ-панель</h1>
 
           {/* Screen Monitoring */}
-          <div className="glass-effect p-8 rounded-xl mb-6">
-            <h2 className="text-3xl font-semibold mb-4">Мониторинг экранов</h2>
-            <ul className="mt-2">
+          <div className="glass-effect p-10 rounded-2xl mb-8 shimmer">
+            <h2 className="text-4xl font-semibold mb-6" style={{ fontFamily: 'Orbitron' }}>Мониторинг экранов</h2>
+            <ul className="text-xl">
               {screens.map(screen => (
-                <li key={screen.id} className="text-xl">
+                <li key={screen.id} className="mb-2">
                   {screen.name}: <span className={screen.status === 'Онлайн' ? 'text-green-400' : 'text-red-400'}>{screen.status}</span>
                 </li>
               ))}
@@ -166,16 +301,16 @@
           </div>
 
           {/* Content Management */}
-          <div className="glass-effect p-8 rounded-xl mb-6">
-            <h2 className="text-3xl font-semibold mb-4">Управление контентом</h2>
+          <div className="glass-effect p-10 rounded-2xl mb-8 shimmer">
+            <h2 className="text-4xl font-semibold mb-6" style={{ fontFamily: 'Orbitron' }}>Управление контентом</h2>
             <textarea
-              className="w-full p-3 mt-2 bg-transparent border border-gray-500 rounded text-white text-lg"
+              className="w-full p-4 mt-2 bg-transparent border border-gray-500 rounded text-white text-xl"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Введите новый контент"
             ></textarea>
             <button
-              className="mt-3 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 hover:scale-105 transition-transform"
+              className="mt-4 px-8 py-4 bg-gray-600 text-white rounded-lg hover:bg-gray-700 hover:scale-105 transition-transform"
               onClick={handleContentUpdate}
             >
               Обновить контент
@@ -183,17 +318,17 @@
           </div>
 
           {/* Event Calendar */}
-          <div className="glass-effect p-8 rounded-xl">
-            <h2 className="text-3xl font-semibold mb-4">Календарь событий</h2>
+          <div className="glass-effect p-10 rounded-2xl shimmer">
+            <h2 className="text-4xl font-semibold mb-6" style={{ fontFamily: 'Orbitron' }}>Календарь событий</h2>
             <button
-              className="mt-3 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 hover:scale-105 transition-transform"
+              className="mt-4 px-8 py-4 bg-gray-600 text-white rounded-lg hover:bg-gray-700 hover:scale-105 transition-transform"
               onClick={addEvent}
             >
               Добавить событие
             </button>
-            <ul className="mt-4">
+            <ul className="mt-4 text-xl">
               {events.map(event => (
-                <li key={event.id} className="text-xl">
+                <li key={event.id} className="mb-2">
                   {event.title} - {event.date}
                 </li>
               ))}
