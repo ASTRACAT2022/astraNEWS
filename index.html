@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASTRACAT Информационный экран</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://uptime.betterstack.com/widgets/announcement.js" data-id="211804" async="async" type="text/javascript"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap');
+    body {
+      background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+      color: #d1d5db;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+    }
+    .glass {
+      background: rgba(31, 41, 55, 0.4);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    }
+    .astracat-logo {
+      font-size: 4rem;
+      font-weight: 700;
+      color: #60a5fa;
+      letter-spacing: 1px;
+      transition: color 0.3s ease;
+    }
+    .section-title {
+      font-weight: 600;
+      color: #f3f4f6;
+      border-left: 4px solid #60a5fa;
+      padding-left: 1rem;
+    }
+    .card {
+      background: rgba(31, 41, 55, 0.6);
+      border-radius: 8px;
+      padding: 1rem;
+      transition: transform 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+    }
+    .webcam-container {
+      width: 240px;
+      height: 135px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+    @media (min-width: 1920px) {
+      html { font-size: 1.6vw; }
+      .glass { padding: 2.5rem; }
+      .astracat-logo { font-size: 5rem; }
+      .webcam-container { width: 360px; height: 202px; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-6">
+  <div class="glass w-full max-w-8xl p-8 flex flex-col gap-10">
+    <div class="flex justify-between items-center">
+      <div id="time-date" class="text-4xl font-semibold text-gray-200"></div>
+      <div id="weather" class="text-2xl font-medium card"></div>
+    </div>
+    <div class="flex flex-col gap-6">
+      <h1 class="astracat-logo text-center">ASTRACAT</h1>
+      <iframe src="https://astracat-inc.betteruptime.com/badge?theme=dark" width="300" height="40" frameborder="0" scrolling="no" style="color-scheme: normal;"></iframe>
+      <div id="ecosystem-info" class="text-lg card"></div>
+    </div>
+    <div class="flex flex-col gap-6">
+      <h2 class="text-2xl section-title">Календарь событий</h2>
+      <div id="calendar" class="text-lg grid grid-cols-1 gap-3"></div>
+    </div>
+    <div class="flex flex-col gap-6">
+      <h2 class="text-2xl section-title">Уведомления</h2>
+      <div id="notifications" class="text-lg grid grid-cols-1 gap-3"></div>
+    </div>
+    <div class="flex justify-end">
+      <div class="webcam-container">
+        <iframe src="https://webcams.org.ru/js/player/playerjs.html?file=https://hls-spb03.timetechnology.ru:8080/2722/hls/fcdac098bed8c78a/live.m3u8&poster=/images/photo/fe/de/federation-tower-cam.webp" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // WebSocket для отслеживания активных экранов
+    const ws = new WebSocket('wss://example.com/ws');
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'screen_connect', id: navigator.userAgent }));
+    };
+    ws.onclose = () => {
+      setTimeout(() => location.reload(), 5000);
+    };
+
+    // Обновление времени и даты
+    function updateTimeDate() {
+      const now = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+      document.getElementById('time-date').textContent = now.toLocaleString('ru-RU', options);
+    }
+    setInterval(updateTimeDate, 1000);
+    updateTimeDate();
+
+    // Загрузка данных из localStorage
+    function loadData() {
+      const data = JSON.parse(localStorage.getItem('screenData') || '{}');
+      document.getElementById('weather').textContent = data.weather || 'Погода: Нет данных';
+      document.getElementById('ecosystem-info').textContent = data.ecosystem || 'Информация об экосистеме: Нет данных';
+      document.getElementById('calendar').innerHTML = (data.calendar || []).map(event => `<p class="card">${event.date}: ${event.title}</p>`).join('');
+      document.getElementById('notifications').innerHTML = (data.notifications || []).map(note => `<p class="text-red-200 card">${note}</p>`).join('');
+    }
+    loadData();
+
+    // Обновление данных через WebSocket
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        localStorage.setItem('screenData', JSON.stringify(data.payload));
+        loadData();
+      }
+    };
+  </script>
+</body>
+</html>
